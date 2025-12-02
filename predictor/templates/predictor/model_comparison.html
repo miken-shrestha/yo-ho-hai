@@ -1,0 +1,33 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Model Comparison{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Model Comparison</h2>
+    {% if model_comparison %}
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:8px;">Model</th>
+                    <th style="text-align:left; padding:8px;">Test R²</th>
+                    <th style="text-align:left; padding:8px;">RMSE</th>
+                    <th style="text-align:left; padding:8px;">MAE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for name, metrics in model_comparison.items %}
+                <tr>
+                    <td style="padding:8px">{{ name }}</td>
+                    <td style="padding:8px">{{ metrics.test_r2|default:metrics.test_r2 }}</td>
+                    <td style="padding:8px">{{ metrics.test_rmse|default:metrics.test_rmse }}</td>
+                    <td style="padding:8px">{{ metrics.test_mae|default:metrics.test_mae }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No model metrics available.</p>
+    {% endif %}
+</div>
+{% endblock %}

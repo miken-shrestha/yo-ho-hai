@@ -1,0 +1,255 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}History Dashboard - Gold Price Predictor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .history-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .history-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .history-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .history-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .history-table tbody tr:nth-child(odd) {
+        background: #f8f9fa;
+    }
+
+    .chart-container {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+
+    .chart-container h3 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        font-size: 1.4em;
+        font-weight: 600;
+    }
+
+    .filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-group label {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .filter-group input, .filter-group select {
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 1em;
+    }
+
+    .export-btn {
+        padding: 12px 25px;
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(67, 233, 123, 0.4);
+    }
+
+    @media (max-width: 768px) {
+        .filters {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Prediction History</h2>
+    
+    <div class="filters">
+        <div class="filter-group">
+            <label for="limitSelect">Records per page:</label>
+            <select id="limitSelect" onchange="loadHistoryTable()">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>&nbsp;</label>
+            <button class="export-btn" onclick="exportToCSV()">
+                📥 Export to CSV
+            </button>
+        </div>
+    </div>
+
+    <div id="historyTableContainer"></div>
+</div>
+
+<div class="card">
+    <div class="chart-container">
+        <h3>📈 Complete Prediction History Chart</h3>
+        <canvas id="fullHistoryChart" height="300"></canvas>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let fullHistoryChart = null;
+    let historyData = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadHistoryTable();
+    });
+
+    async function loadHistoryTable() {
+        const limit = document.getElementById('limitSelect').value;
+        
+        try {
+            const response = await fetch(`/prediction-history/?limit=${limit}`);
+            const data = await response.json();
+
+            if (data.success && data.predictions) {
+                historyData = data.predictions;
+                displayHistoryTable(data.predictions);
+                loadHistoryChart();
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    function displayHistoryTable(predictions) {
+        let tableHTML = '<table class="history-table"><thead><tr>';
+        tableHTML += '<th>Date/Time</th>';
+        tableHTML += '<th>Predicted Price (NPR)</th>';
+        tableHTML += '<th>USD Rate</th>';
+        tableHTML += '<th>Gold Price USD</th>';
+        tableHTML += '<th>Inflation Rate</th>';
+        tableHTML += '</tr></thead><tbody>';
+
+        predictions.forEach(pred => {
+            tableHTML += `<tr>
+                <td>${pred.timestamp}</td>
+                <td style="font-weight: 600; color: #667eea;">NPR ${pred.predicted_price.toLocaleString('en-NP', {minimumFractionDigits: 2})}</td>
+                <td>${pred.usd_rate || '-'}</td>
+                <td>${pred.gold_price_usd || '-'}</td>
+                <td>${pred.inflation_rate || '-'}</td>
+            </tr>`;
+        });
+
+        tableHTML += '</tbody></table>';
+        document.getElementById('historyTableContainer').innerHTML = tableHTML;
+    }
+
+    function loadHistoryChart() {
+        const dates = historyData.map(p => p.timestamp);
+        const prices = historyData.map(p => p.predicted_price);
+
+        const ctx = document.getElementById('fullHistoryChart').getContext('2d');
+        
+        if (fullHistoryChart) {
+            fullHistoryChart.destroy();
+        }
+
+        fullHistoryChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Predicted Gold Price (NPR)',
+                    data: prices,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return 'NPR ' + value.toLocaleString('en-NP');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function exportToCSV() {
+        if (historyData.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        let csvContent = 'Date/Time,Predicted Price (NPR),USD Rate,Gold Price USD,Inflation Rate\n';
+        
+        historyData.forEach(pred => {
+            csvContent += `"${pred.timestamp}","${pred.predicted_price}","${pred.usd_rate || ''}","${pred.gold_price_usd || ''}","${pred.inflation_rate || ''}"\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gold-price-history-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+</script>
+{% endblock %}

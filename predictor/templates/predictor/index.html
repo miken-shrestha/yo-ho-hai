@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Gold Price Predictor</title>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+	<style>
+		/* filepath: c:\Users\User\OneDrive\Desktop\goldprediction - Copy\predictor\templates\predictor\index.html */
+		:root{
+			--bg-1: #667eea;
+			--bg-2: #764ba2;
+			--accent: #4facfe;
+			--muted: #6c7a89;
+			--card: #ffffff;
+			--glass: rgba(255,255,255,0.08);
+			--radius: 12px;
+		}
+		html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,var(--bg-1),var(--bg-2));color:#222;overflow-anchor:none;}
+		.app {
+			min-height:100%;
+			display:grid;
+			grid-template-columns: 260px 1fr;
+			gap:24px;
+			padding:24px;
+			box-sizing:border-box;
+			align-items:start;
+		}
+
+		/* SIDEBAR */
+		.sidebar{
+			background: rgba(255,255,255,0.06);
+			backdrop-filter: blur(6px);
+			border-radius: calc(var(--radius) - 2px);
+			color: white;
+			padding:20px;
+			display:flex;
+			flex-direction:column;
+			gap:16px;
+			box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+			position:sticky;
+			top:20px;
+			height:calc(100vh - 48px);
+			overflow:auto;
+		}
+		.brand{
+			display:flex;align-items:center;gap:12px;margin-bottom:6px;
+		}
+		.brand .logo{font-size:32px}
+		.brand h2{font-size:18px;margin:0;font-weight:700}
+		.nav { display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+		.nav a{color:rgba(255,255,255,0.9);text-decoration:none;padding:10px;border-radius:8px;display:flex;gap:10px;align-items:center;font-weight:600}
+		.nav a.active, .nav a:hover{background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));transform:translateX(4px);}
+
+		/* MAIN */
+		.main {
+			padding: 12px 12px 60px 12px;
+			overflow:auto;
+		}
+		.header {
+			display:flex;justify-content:space-between;align-items:center;gap:12px;color:white;margin-bottom:18px;
+		}
+		.header h1{margin:0;font-size:22px}
+		.header p{margin:0;color:rgba(255,255,255,0.9);font-weight:400}
+
+		.grid {
+			display:grid;
+			grid-template-columns: 1fr 420px;
+			gap:20px;
+			align-items:start;
+		}
+
+		.card{
+			background:var(--card);
+			border-radius:var(--radius);
+			padding:18px;
+			box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+		}
+
+		.card h3{margin:0 0 12px 0;font-size:16px;color:#2c3e50}
+		.form-row{display:flex;gap:12px;margin-bottom:12px;align-items:center}
+		.form-row label{min-width:160px;color:var(--muted);font-weight:600}
+		.form-row input, .form-row select{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9ee;font-size:14px;background:#fafbfd}
+
+		.btn{
+			display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700;
+		}
+		.btn.primary{background:linear-gradient(90deg,var(--accent),#00f2fe);color:#fff;box-shadow:0 10px 30px rgba(79,172,254,0.18);}
+		.btn.ghost{background:transparent;border:1px solid #e6e9ee;color:#2c3e50}
+		.small {font-size:13px;padding:8px 10px;border-radius:8px}
+
+		.stats {display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+		.stat {background:var(--glass);padding:12px;border-radius:10px;color:white;text-align:center}
+		.stat .value{font-weight:800;color:#ffd700;font-size:18px;margin-top:6px}
+
+		/* charts area */
+		.charts {display:flex;flex-direction:column;gap:14px}
+		.chart-wrap{background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,0.06)}
+		.chart-wrap canvas{width:100%;height:240px;display:block}
+
+		/* toast */
+		.toast {position:fixed;right:20px;bottom:20px;min-width:260px;background:#222;color:#fff;padding:12px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.4);display:none;align-items:center;gap:12px}
+		.toast.show{display:flex;animation:fadein .18s}
+		@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+		@media (max-width: 1000px){
+			.app{grid-template-columns:1fr;padding:16px}
+			.grid{grid-template-columns:1fr}
+			.sidebar{position:relative;height:auto}
+		}
+	</style>
+</head>
+<body>
+	<div class="app" role="application" aria-label="Gold Price Predictor app">
+		<aside class="sidebar" aria-label="Navigation">
+			<div class="brand">
+				<div class="logo">🥇</div>
+				<div>
+					<h2>Gold Predictor</h2>
+					<div style="font-size:12px;color:rgba(255,255,255,0.75)">Real-time · Forecast · Analytics</div>
+				</div>
+			</div>
+
+			<nav class="nav" aria-label="Primary">
+				<a href="/" class="active">Prediction</a>
+				<a href="/analytics/">Analytics</a>
+				<a href="/forecast/">Forecast</a>
+				<a href="/history/">History</a>
+			</nav>
+
+			<div style="margin-top:auto;font-size:13px;color:rgba(255,255,255,0.8)">
+				<div style="margin-top:12px;">Model: <strong>{{ best_model_name }}</strong></div>
+				<div style="margin-top:6px;">Loaded: <strong>{{ model_loaded|yesno:"Yes,No" }}</strong></div>
+			</div>
+		</aside>
+
+		<main class="main">
+			<header class="header">
+				<div>
+					<h1>Gold Price Predictor</h1>
+					<p class="subtitle">Clean inputs, clear actions — get accurate gold-price estimates.</p>
+				</div>
+				<div>
+					<button id="fetchAllBtn" class="btn small ghost" onclick="fetchAllData()">🔄 Live Data</button>
+					<button class="btn small primary" onclick="document.getElementById('predictionForm').scrollIntoView({behavior:'smooth',block:'center'})">Make Prediction</button>
+				</div>
+			</header>
+
+			<section class="grid" aria-live="polite">
+				<!-- LEFT: Form and history -->
+				<div>
+					<div class="card" id="formCard" role="region" aria-labelledby="formHeading">
+						<h3 id="formHeading">Make a Prediction</h3>
+
+						<form id="predictionForm" autocomplete="off" novalidate>
+							<!-- ...existing code replaced by simpler rows ... -->
+							<div class="form-row">
+								<label for="usd_rate">USD Exchange Rate (NPR)</label>
+								<input id="usd_rate" name="usd_rate" type="number" step="0.01" required placeholder="133.50" aria-label="USD to NPR rate" />
+								<button type="button" class="btn ghost small" onclick="fetchExchangeRate()" aria-label="Fetch exchange rate">Fetch</button>
+							</div>
+
+							<div class="form-row">
+								<label for="gold_price_usd">Gold Price (USD/oz)</label>
+								<input id="gold_price_usd" name="gold_price_usd" type="number" step="0.01" required placeholder="2063.80" />
+								<button type="button" class="btn ghost small" onclick="fetchGoldPrice()">Fetch</button>
+							</div>
+
+							<div class="form-row">
+								<label for="inflation_rate">Inflation Rate (%)</label>
+								<input id="inflation_rate" name="inflation_rate" type="number" step="0.0001" required placeholder="0.0526" />
+								<button type="button" class="btn ghost small" onclick="fetchInflationRate()">Fetch</button>
+							</div>
+
+							<div class="form-row">
+								<label for="interest_rate">Interest Rate (%)</label>
+								<input id="interest_rate" name="interest_rate" type="number" step="0.001" placeholder="0.07" />
+								<button type="button" class="btn ghost small" onclick="fetchInterestRate()">Fetch</button>
+							</div>
+
+							<div class="form-row">
+								<label for="nepse_index">NEPSE Index</label>
+								<input id="nepse_index" name="nepse_index" type="number" step="0.01" placeholder="2095.46" />
+								<button type="button" class="btn ghost small" onclick="fetchNEPSEIndex()">Fetch</button>
+							</div>
+
+							<div class="form-row">
+								<label for="festivals">Festival</label>
+								<select id="festivals" name="festivals" aria-label="Festival">
+									<option value="0">No Festival</option>
+									<option value="1">Wedding Season</option>
+									<option value="2">Tihar</option>
+									<option value="3">Dashain</option>
+								</select>
+							</div>
+
+							<!-- action -->
+							<div style="display:flex;gap:10px;margin-top:8px">
+								<button type="submit" class="btn primary" id="predictBtn">🚀 Predict</button>
+								<button type="button" class="btn ghost" onclick="generate7DayForecast()">🔮 7-Day Forecast</button>
+							</div>
+						</form>
+
+						<!-- result -->
+						<div id="resultBox" class="card" style="margin-top:14px;display:none">
+							<h3>🎯 Predicted Gold Price</h3>
+							<div style="font-size:22px;font-weight:800;color:#2c3e50">NPR <span id="predictionValue">0</span></div>
+							<div style="margin-top:8px" id="featuresList" aria-live="polite"></div>
+						</div>
+
+						<!-- history chart -->
+						<div style="margin-top:14px">
+							<div class="chart-wrap card">
+								<h3 style="margin-bottom:12px">Prediction History</h3>
+								<canvas id="predictionChart" aria-label="Prediction history chart"></canvas>
+								<div style="margin-top:8px;color:var(--muted);font-size:13px">Recent predictions (last 10)</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- RIGHT: Analytics & quick stats -->
+				<aside>
+					<div class="card">
+						<h3>Quick Stats</h3>
+						<div class="stats" aria-hidden="false">
+							<div class="stat">
+								<div class="label">Last Prediction</div>
+								<div class="value" id="lastPrediction">-</div>
+							</div>
+							<div class="stat">
+								<div class="label">Total</div>
+								<div class="value" id="totalPredictions">0</div>
+							</div>
+							<div class="stat">
+								<div class="label">Average</div>
+								<div class="value" id="avgPrice">-</div>
+							</div>
+						</div>
+						<div style="margin-top:12px">
+							<button class="btn ghost" onclick="loadPredictionHistory()">Refresh History</button>
+							<button class="btn primary" style="float:right" onclick="exportHistory()">Export CSV</button>
+						</div>
+					</div>
+
+					<div class="card charts" style="margin-top:12px">
+						<div class="chart-wrap">
+							<h3>Feature Importance</h3>
+							<canvas id="featureImportanceChart"></canvas>
+						</div>
+						<div class="chart-wrap">
+							<h3>Model Comparison</h3>
+							<canvas id="modelComparisonChart"></canvas>
+						</div>
+					</div>
+
+					<div class="card" style="margin-top:12px">
+						<h3>Live Data Sources</h3>
+						<div style="font-size:13px;color:var(--muted);line-height:1.6">
+							GoldAPI · MetalPriceAPI<br>
+							Open Exchange Rates<br>
+							World Bank · NEPSE
+						</div>
+					</div>
+				</aside>
+			</section>
+		</main>
+	</div>
+
+	<!-- toast -->
+	<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+	<script>
+		/* Minimalized JS: request guards, toasts, core fetch/predict wrappers */
+		// small client-side guard to avoid duplicate calls
+		window._lastCalls = {};
+		function allowCall(key, ms=1200){
+			const now = Date.now();
+			const last = window._lastCalls[key] || 0;
+			if (now - last < ms) return false;
+			window._lastCalls[key] = now;
+			return true;
+		}
+		function showToast(msg, timeout=2200){
+			const el = document.getElementById('toast');
+			el.textContent = msg;
+			el.classList.add('show');
+			setTimeout(()=>el.classList.remove('show'), timeout);
+		}
+
+		// read CSRF token helper
+		function getCSRF(){
+			const el = document.querySelector('[name=csrfmiddlewaretoken]');
+			return el ? el.value : '';
+		}
+
+		// disable button helper
+		function setBtnLoading(btn, loading=true, text='Loading...'){
+			if(!btn) return;
+			btn.dataset.orig = btn.innerHTML;
+			btn.disabled = loading;
+			if(loading) btn.innerHTML = '⏳ ' + text;
+			else btn.innerHTML = btn.dataset.orig || btn.innerHTML;
+		}
+
+		// Chart placeholders
+		let predictionChart=null, featureImportanceChart=null, modelComparisonChart=null, forecastChart=null;
+
+		// initialize charts (simple; keeps your Chart.js usage)
+		function initCharts(){
+			// prediction chart
+			const predCtx = document.getElementById('predictionChart').getContext('2d');
+			predictionChart = new Chart(predCtx, { type:'line', data:{labels:[],datasets:[{label:'Predicted NPR',data:[],borderColor:'#FF9800',backgroundColor:'rgba(255,152,0,0.08)',tension:0.3}]}, options:{responsive:true,animation:false}});
+			// feature importance
+			const fCtx = document.getElementById('featureImportanceChart').getContext('2d');
+			featureImportanceChart = new Chart(fCtx,{type:'bar',data:{labels:['USD','GoldUSD','Inflation','Interest','NEPSE','Festivals'],datasets:[{data:[0.35,0.25,0.15,0.12,0.08,0.05],backgroundColor:['#667eea','#764ba2','#f093fb','#f5576c','#4facfe','#43e97b']}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+			// model comparison
+			const mCtx = document.getElementById('modelComparisonChart').getContext('2d');
+			modelComparisonChart = new Chart(mCtx,{type:'radar',data:{labels:['R²','RMSE','MAE','Speed','Accuracy','Stability'],datasets:[{label:'Linear',data:[0.95,0.9,0.85,1,0.95,0.9],borderColor:'#667eea',backgroundColor:'rgba(102,126,234,0.16)'}]},options:{responsive:true}});
+		}
+
+		// common fetch wrapper with guard + error handling
+		async function guardedFetch(url, opts={}, guardKey=null, guardMs=800){
+			if(guardKey && !allowCall(guardKey, guardMs)) {
+				console.warn('guardedFetch prevented duplicate call:', guardKey);
+				return null;
+			}
+			try{
+				const res = await fetch(url, opts);
+				const json = await res.json().catch(()=>null);
+				return json;
+			}catch(e){
+				console.error('Fetch error',url,e);
+				return { success:false, error: e.message || 'Network error' };
+			}
+		}
+
+		// UI wrappers for API calls
+		async function fetchAllData(){
+			if(!allowCall('fetchAllData', 2000)) return;
+			const btn = document.getElementById('fetchAllBtn');
+			setBtnLoading(btn,true,'Fetching');
+			const data = await guardedFetch('/fetch-live-data/', {method:'GET'}, 'fetchAllData', 1000);
+			setBtnLoading(btn,false);
+			if(!data) return;
+			if(data.success && data.data){
+				const d = data.data;
+				['usd_rate','gold_price_usd','inflation_rate','interest_rate','nepse_index'].forEach(id=>{
+					if(document.getElementById(id) && d[id] !== undefined) document.getElementById(id).value = d[id];
+				});
+				if(d.festivals !== undefined && document.getElementById('festivals')) document.getElementById('festivals').value = d.festivals;
+				showToast('Live data populated');
+			}else{
+				showToast('Live data fetch failed');
+			}
+		}
+
+		async function fetchExchangeRate(){ await fetchSingleField('usd_rate','fetchExchangeRate'); }
+		async function fetchGoldPrice(){ await fetchSingleField('gold_price_usd','fetchGoldPrice'); }
+		async function fetchInflationRate(){ await fetchSingleField('inflation_rate','fetchInflationRate'); }
+		async function fetchInterestRate(){ await fetchSingleField('interest_rate','fetchInterestRate'); }
+		async function fetchNEPSEIndex(){ await fetchSingleField('nepse_index','fetchNEPSEIndex'); }
+
+		async function fetchSingleField(fieldId, guardKey){
+			if(!allowCall(guardKey,700)) return;
+			const field = document.getElementById(fieldId);
+			const btn = field ? field.parentNode.querySelector('button') : null;
+			setBtnLoading(btn,true);
+			const res = await guardedFetch('/fetch-live-data/', {method:'GET'}, guardKey, 700);
+			setBtnLoading(btn,false);
+			if(res && res.success && res.data && res.data[fieldId] !== undefined){
+				field.value = res.data[fieldId];
+				showToast('Updated '+fieldId);
+			}else{
+				showToast('Failed to update '+fieldId);
+			}
+		}
+
+		// prediction form submit
+		document.addEventListener('DOMContentLoaded', ()=> {
+			initCharts();
+			loadPredictionHistory();
+			const form = document.getElementById('predictionForm');
+			form.addEventListener('submit', async (e)=>{
+				e.preventDefault();
+				if(!allowCall('submitPrediction',2000)) { showToast('Please wait'); return; }
+				const btn = document.getElementById('predictBtn');
+				setBtnLoading(btn,true,'Predicting');
+				const payload = {
+					usd_rate: parseFloat(document.getElementById('usd_rate').value||0),
+					gold_price_usd: parseFloat(document.getElementById('gold_price_usd').value||0),
+					inflation_rate: parseFloat(document.getElementById('inflation_rate').value||0),
+					interest_rate: parseFloat(document.getElementById('interest_rate').value||0),
+					nepse_index: parseFloat(document.getElementById('nepse_index').value||0),
+					festivals: parseInt(document.getElementById('festivals').value||0)
+				};
+				// send
+				const res = await guardedFetch('/predict/', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()}, body: JSON.stringify(payload)}, 'submitPrediction', 1000);
+				setBtnLoading(btn,false);
+				if(res && res.success){
+					document.getElementById('predictionValue').textContent = (res.prediction || 0).toLocaleString('en-NP',{minimumFractionDigits:2});
+					// features list
+					const fl = document.getElementById('featuresList'); fl.innerHTML = '';
+					Object.entries(res.features || {}).forEach(([k,v])=>{
+						const div = document.createElement('div'); div.style.fontSize='13px'; div.style.marginTop='6px';
+						div.innerHTML = `<strong style="color:#4a5568">${k}:</strong> ${v}`;
+						fl.appendChild(div);
+					});
+					document.getElementById('resultBox').style.display = 'block';
+					// update chart
+					try{
+						const now = new Date(); const lbl = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+						predictionChart.data.labels.push(lbl); predictionChart.data.datasets[0].data.push(res.prediction);
+						if(predictionChart.data.labels.length>10){ predictionChart.data.labels.shift(); predictionChart.data.datasets[0].data.shift(); }
+						predictionChart.update();
+					}catch(e){}
+					showToast('Prediction ready');
+					setTimeout(loadPredictionHistory,900);
+				}else{
+					showToast('Prediction failed: '+(res && res.error || 'unknown'));
+				}
+			});
+		});
+
+		// history
+		async function loadPredictionHistory(){
+			const res = await guardedFetch('/prediction-history/?limit=10',{method:'GET'},'loadPredictionHistory',1200);
+			if(res && res.success && Array.isArray(res.predictions)){
+				const preds = res.predictions;
+				// populate chart
+				predictionChart.data.labels = preds.map(p=>p.timestamp);
+				predictionChart.data.datasets[0].data = preds.map(p=>p.predicted_price);
+				predictionChart.update();
+				// quick stats
+				document.getElementById('totalPredictions').textContent = preds.length;
+				if(preds.length) {
+					document.getElementById('lastPrediction').textContent = 'NPR '+preds[preds.length-1].predicted_price.toLocaleString('en-NP',{minimumFractionDigits:2});
+					const avg = preds.reduce((a,b)=>a+b.predicted_price,0)/preds.length;
+					document.getElementById('avgPrice').textContent = 'NPR '+avg.toLocaleString('en-NP',{minimumFractionDigits:2});
+				}
+			}
+		}
+
+		// 7-day forecast
+		async function generate7DayForecast(){
+			if(!allowCall('generate7DayForecast',1500)) return;
+			const payload = {
+				usd_rate: parseFloat(document.getElementById('usd_rate').value||0),
+				gold_price_usd: parseFloat(document.getElementById('gold_price_usd').value||0),
+				inflation_rate: parseFloat(document.getElementById('inflation_rate').value||0),
+				interest_rate: parseFloat(document.getElementById('interest_rate').value||0),
+				nepse_index: parseFloat(document.getElementById('nepse_index').value||0),
+				festivals: parseInt(document.getElementById('festivals').value||0)
+			};
+			showToast('Generating 7-day forecast...');
+			const res = await guardedFetch('/predict-7-days/', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()}, body:JSON.stringify(payload)}, 'generate7DayForecast', 2000);
+			if(res && res.success){
+				// display small inline chart + table (simple)
+				const container = document.getElementById('forecastChartContainer') || createForecastContainer();
+				document.getElementById('forecastChartContainer').style.display='block';
+				const dates = res.predictions_7_days.map(p=>p.date);
+				const prices = res.predictions_7_days.map(p=>p.prediction);
+				const ctx = document.getElementById('forecastChart').getContext('2d');
+				if(forecastChart) forecastChart.destroy();
+				forecastChart = new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{label:'NPR',data:prices,borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,0.08)',tension:0.3}]},options:{responsive:true}});
+				// table
+				let html = '<table style="width:100%;border-collapse:collapse"><thead><tr><th>Day</th><th>Date</th><th style="text-align:right">Price (NPR)</th></tr></thead><tbody>';
+				res.predictions_7_days.forEach(row=> html+=`<tr><td style="padding:8px">${row.day}</td><td>${row.date}</td><td style="text-align:right;padding:8px">NPR ${Number(row.prediction).toLocaleString('en-NP')}</td></tr>`);
+				html += '</tbody></table>';
+				document.getElementById('forecastTable').innerHTML = html;
+				showToast('7-day forecast ready');
+			}else showToast('Forecast failed');
+		}
+
+		function createForecastContainer(){
+			const cont = document.getElementById('forecastChartContainer');
+			if(cont) return cont;
+			// no-op (our template already contains it)
+		}
+
+		// export CSV (quick)
+		function exportHistory(){
+			guardedFetch('/prediction-history/?limit=100',{method:'GET'}).then(res=>{
+				if(!res || !res.success) { showToast('No history'); return; }
+				const rows = [['Date/Time','Predicted Price','USD Rate','Gold USD','Inflation']];
+				res.predictions.forEach(p=> rows.push([p.timestamp, p.predicted_price, p.usd_rate||'', p.gold_price_usd||'', p.inflation_rate||'']));
+				const csv = rows.map(r=> r.map(v=> `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+				const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
+				const a = document.createElement('a'); a.href=url; a.download=`gold_history_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+				showToast('CSV exported');
+			});
+		}
+	</script>
+</body>
+</html>

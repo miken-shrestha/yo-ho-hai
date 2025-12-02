@@ -1,0 +1,245 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Forecast Dashboard - Gold Price Predictor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .forecast-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+
+    .forecast-card h3 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        font-size: 1.4em;
+    }
+
+    .generate-btn {
+        width: 100%;
+        padding: 18px;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.2em;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 30px;
+    }
+
+    .generate-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 40px;
+    }
+
+    .loading.show {
+        display: block;
+    }
+
+    .spinner {
+        border: 4px solid rgba(79, 172, 254, 0.3);
+        border-top: 4px solid #4facfe;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .forecast-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .forecast-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .forecast-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .forecast-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .forecast-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .forecast-table tbody tr:nth-child(odd) {
+        background: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="forecast-card card">
+    <h2>7-Day Gold Price Forecast</h2>
+    
+    <button class="generate-btn" onclick="generateForecast()">
+        📊 Generate 7-Day Forecast
+    </button>
+
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Generating forecast...</p>
+    </div>
+
+    <div id="forecastContent"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let forecastChart = null;
+
+    async function generateForecast() {
+        const loading = document.querySelector('.loading');
+        loading.classList.add('show');
+
+        try {
+            // Get CSRF token
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+
+            const response = await fetch('/predict-7-days/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    usd_rate: 133.50,
+                    inflation_rate: 0.0526,
+                    gold_price_usd: 2063.80,
+                    interest_rate: 0.07,
+                    festivals: 0,
+                    nepse_index: 2095.46
+                })
+            });
+
+            const data = await response.json();
+            loading.classList.remove('show');
+
+            if (data.success) {
+                displayForecast(data.predictions_7_days);
+            } else {
+                alert('Error: ' + (data.error || 'Failed to generate forecast'));
+            }
+        } catch (error) {
+            loading.classList.remove('show');
+            alert('Error: ' + error.message);
+        }
+    }
+
+    function displayForecast(predictions) {
+        const dates = [];
+        const prices = [];
+
+        predictions.forEach(pred => {
+            dates.push(pred.date);
+            prices.push(parseFloat(pred.prediction));
+        });
+
+        // Create chart container
+        const chartContainer = document.createElement('div');
+        chartContainer.style.marginTop = '30px';
+        chartContainer.style.backgroundColor = 'white';
+        chartContainer.style.padding = '20px';
+        chartContainer.style.borderRadius = '12px';
+        chartContainer.innerHTML = '<canvas id="forecastChartCanvas" height="300"></canvas>';
+
+        // Create table
+        let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin-top: 20px;"><thead>';
+        tableHTML += '<tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">';
+        tableHTML += '<th style="padding: 15px; text-align: left; font-weight: 600;">Day</th>';
+        tableHTML += '<th style="padding: 15px; text-align: left; font-weight: 600;">Date</th>';
+        tableHTML += '<th style="padding: 15px; text-align: right; font-weight: 600;">Predicted Price (NPR)</th>';
+        tableHTML += '</tr></thead><tbody>';
+
+        predictions.forEach((pred, index) => {
+            const rowBg = index % 2 === 0 ? '#f8f9fa' : 'white';
+            tableHTML += `<tr style="background: ${rowBg}; border-bottom: 1px solid #e0e0e0;">`;
+            tableHTML += `<td style="padding: 15px;">Day ${pred.day}</td>`;
+            tableHTML += `<td style="padding: 15px;">${pred.date}</td>`;
+            tableHTML += `<td style="padding: 15px; text-align: right; font-weight: 600; color: #667eea;">NPR ${parseFloat(pred.prediction).toLocaleString('en-NP', {minimumFractionDigits: 2})}</td>`;
+            tableHTML += `</tr>`;
+        });
+
+        tableHTML += '</tbody></table>';
+
+        const forecastContent = document.getElementById('forecastContent');
+        forecastContent.innerHTML = '';
+        forecastContent.appendChild(chartContainer);
+        forecastContent.innerHTML += tableHTML;
+
+        // Initialize chart
+        const ctx = document.getElementById('forecastChartCanvas').getContext('2d');
+        if (forecastChart) forecastChart.destroy();
+
+        forecastChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: '7-Day Forecast (NPR)',
+                    data: prices,
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                    borderWidth: 3,
+                    borderDash: [5, 5],
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#00f2fe',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' } },
+                scales: { y: { beginAtZero: false } }
+            }
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

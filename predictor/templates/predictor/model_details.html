@@ -1,0 +1,33 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Model Details{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ model_name|default:'Model Details' }}</h2>
+
+    {% if metrics %}
+        <ul>
+            <li><strong>Test R²:</strong> {{ metrics.test_r2 }}</li>
+            <li><strong>Test RMSE:</strong> {{ metrics.test_rmse }}</li>
+            <li><strong>Test MAE:</strong> {{ metrics.test_mae }}</li>
+        </ul>
+    {% else %}
+        <p>No metrics available for this model.</p>
+    {% endif %}
+
+    {% if model_description %}
+        <h3>Description</h3>
+        <p>{{ model_description }}</p>
+    {% endif %}
+
+    {% if advantages %}
+        <h3>Advantages</h3>
+        <ul>
+            {% for a in advantages %}
+            <li>{{ a }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}

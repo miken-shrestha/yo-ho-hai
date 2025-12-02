@@ -1,0 +1,676 @@
+{% extends 'predictor/base.html' %}
+
+{% block title %}Prediction Dashboard - Gold Price Predictor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        margin-top: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 10px;
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1em;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 14px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1em;
+        transition: all 0.3s;
+        background: #f8f9fa;
+    }
+
+    input:focus, select:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .input-with-button {
+        display: flex;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .input-with-button input {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .fetch-btn {
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.85em;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+        min-width: 100px;
+    }
+
+    .fetch-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .fetch-btn:disabled {
+        background: #95a5a6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 18px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.2em;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(245, 87, 108, 0.4);
+    }
+
+    .result {
+        display: none;
+        margin-top: 25px;
+        padding: 25px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+        animation: slideIn 0.6s ease;
+    }
+
+    .result.show {
+        display: block;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .prediction-value {
+        font-size: 3em;
+        color: #FFD700;
+        font-weight: bold;
+        margin: 20px 0;
+        text-align: center;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin: 30px 0;
+    }
+
+    .metric-box {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .metric-label {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.9em;
+        margin-bottom: 8px;
+    }
+
+    .metric-value {
+        color: #FFD700;
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+
+    .info-section {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 20px;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+        margin: 25px 0;
+    }
+
+    .loading.show {
+        display: block;
+    }
+
+    .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid #FFD700;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .error {
+        background: #e74c3c;
+        color: white;
+        padding: 18px;
+        border-radius: 10px;
+        margin-top: 20px;
+        display: none;
+    }
+
+    .error.show {
+        display: block;
+    }
+
+    .auto-fetch-section {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        text-align: center;
+        color: white;
+    }
+
+    .fetch-all-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid white;
+        padding: 15px 30px;
+        border-radius: 10px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .fetch-all-btn:hover {
+        background: white;
+        color: #4facfe;
+        transform: translateY(-2px);
+    }
+
+    .chart-container {
+        margin-top: 35px;
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .chart-header h3 {
+        color: #2c3e50;
+        margin: 0;
+        font-size: 1.4em;
+        font-weight: 600;
+    }
+
+    .refresh-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .refresh-btn:hover {
+        background: #5a6fd8;
+        transform: translateY(-1px);
+    }
+
+    .quick-stats {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .stat-card {
+        padding: 25px;
+        border-radius: 12px;
+        color: white;
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 0.9em;
+        opacity: 0.9;
+        margin-bottom: 10px;
+    }
+
+    .stat-value {
+        font-size: 2em;
+        font-weight: bold;
+    }
+
+    @media (max-width: 1024px) {
+        .main-content {
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .input-with-button {
+            flex-direction: column;
+        }
+
+        .fetch-btn {
+            width: 100%;
+            margin-top: 8px;
+        }
+    }
+    /* Chart sizing fixes: ensure canvas fills its parent container */
+    .chart-container {
+        width: 100%;
+        max-width: 100%;
+        height: 360px; /* adjust as needed */
+        box-sizing: border-box;
+    }
+
+    #predictionChart {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- Left Column: Prediction Form -->
+    <div class="card">
+        <h2>Make Prediction</h2>
+        
+        <div class="auto-fetch-section">
+            <button class="fetch-all-btn" onclick="fetchAllData()">
+                🔄 Fetch All Live Data
+            </button>
+            <div>Automatically populate current market data</div>
+        </div>
+
+        <form id="predictionForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="usd_rate">USD Exchange Rate (NPR):</label>
+                <div class="input-with-button">
+                    <input type="number" id="usd_rate" step="0.01" required placeholder="e.g., 133.50">
+                    <button type="button" class="fetch-btn" onclick="fetchExchangeRate()">Fetch Live</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="inflation_rate">Inflation Rate (%):</label>
+                <div class="input-with-button">
+                    <input type="number" id="inflation_rate" step="0.0001" required placeholder="e.g., 0.0526">
+                    <button type="button" class="fetch-btn" onclick="fetchInflationRate()">Fetch Latest</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="gold_price_usd">Global Gold Price (USD/oz):</label>
+                <div class="input-with-button">
+                    <input type="number" id="gold_price_usd" step="0.01" required placeholder="e.g., 2063.80">
+                    <button type="button" class="fetch-btn" onclick="fetchGoldPrice()">Fetch Live</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="interest_rate">Interest Rate (%):</label>
+                <div class="input-with-button">
+                    <input type="number" id="interest_rate" step="0.001" required placeholder="e.g., 0.07">
+                    <button type="button" class="fetch-btn" onclick="fetchInterestRate()">Fetch Latest</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="festivals">Festival/Event:</label>
+                <select id="festivals" required>
+                    <option value="0">No Festival</option>
+                    <option value="1">Wedding Season</option>
+                    <option value="2">Tihar</option>
+                    <option value="3">Dashain</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nepse_index">NEPSE Index:</label>
+                <div class="input-with-button">
+                    <input type="number" id="nepse_index" step="0.01" required placeholder="e.g., 2095.46">
+                    <button type="button" class="fetch-btn" onclick="fetchNEPSEIndex()">Fetch Live</button>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">🚀 Predict Gold Price (NPR)</button>
+        </form>
+
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Calculating prediction...</p>
+        </div>
+
+        <div class="error"></div>
+
+        <div class="result">
+            <h3>🎯 Predicted Gold Price</h3>
+            <div class="prediction-value">NPR <span id="predictionValue">0</span></div>
+            
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-label">Model Used</div>
+                    <div class="metric-value" id="modelUsed">Linear Regression</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Accuracy</div>
+                    <div class="metric-value" id="modelAccuracy">99.96%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Confidence</div>
+                    <div class="metric-value" id="modelConfidence">High</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>📊 Input Features Used</h3>
+                <div id="featuresList"></div>
+            </div>
+        </div>
+
+        <!-- Prediction History Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3>📈 Prediction History</h3>
+                <button class="refresh-btn" onclick="loadPredictionHistory()">🔄 Refresh</button>
+            </div>
+            <canvas id="predictionChart" height="250"></canvas>
+            <div id="historyMessage"></div>
+        </div>
+    </div>
+
+    <!-- Right Column: Quick Stats -->
+    <div class="card">
+        <h2>Quick Stats & Actions</h2>
+        <div class="quick-stats">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="stat-label">Last Prediction</div>
+                <div class="stat-value" id="lastPrediction">-</div>
+            </div>
+
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stat-label">Total Predictions</div>
+                <div class="stat-value" id="totalPredictions">0</div>
+            </div>
+
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="stat-label">Average Price</div>
+                <div class="stat-value" id="avgPrice">-</div>
+            </div>
+
+            <button type="button" class="submit-btn" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="window.location.href='/forecast/'">
+                📊 Go to Forecast
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // SIMPLE VERSION - NO AUTOMATIC UPDATES
+    let predictionChart = null;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // STOP ALL INTERVALS IMMEDIATELY
+    (function() {
+        console.log('Stopping all automatic intervals...');
+        for (let i = 1; i < 99999; i++) {
+            clearInterval(i);
+            clearTimeout(i);
+        }
+    })();
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Initializing dashboard - NO AUTOMATIC UPDATES');
+        initializeChart();
+        loadPredictionHistory();
+        loadQuickStats();
+    });
+
+    function initializeChart() {
+        const ctx = document.getElementById('predictionChart').getContext('2d');
+        if (predictionChart) {
+            predictionChart.destroy();
+        }
+        
+        predictionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Predicted Gold Price (NPR)',
+                    data: [],
+                    borderColor: '#FF9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#FF9800',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return 'NPR ' + value.toLocaleString('en-NP');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    async function loadPredictionHistory() {
+        try {
+            const response = await fetch('/prediction-history/?limit=10');
+            const data = await response.json();
+            
+            if (data.success && data.predictions) {
+                predictionChart.data.labels = data.predictions.map(p => p.timestamp);
+                predictionChart.data.datasets[0].data = data.predictions.map(p => p.predicted_price);
+                predictionChart.update('none');
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    async function loadQuickStats() {
+        try {
+            const response = await fetch('/prediction-history/?limit=100');
+            const data = await response.json();
+            
+            if (data.success && data.predictions) {
+                const predictions = data.predictions;
+                document.getElementById('totalPredictions').textContent = predictions.length;
+                
+                if (predictions.length > 0) {
+                    document.getElementById('lastPrediction').textContent = 
+                        'NPR ' + predictions[predictions.length - 1].predicted_price.toLocaleString('en-NP', {minimumFractionDigits: 2});
+                    
+                    const avg = predictions.reduce((a, b) => a + b.predicted_price, 0) / predictions.length;
+                    document.getElementById('avgPrice').textContent = 
+                        'NPR ' + avg.toLocaleString('en-NP', {minimumFractionDigits: 2});
+                }
+            }
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    async function fetchAllData() {
+        try {
+            const response = await fetch('/fetch-live-data/');
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                document.getElementById('usd_rate').value = result.data.usd_rate || '';
+                document.getElementById('inflation_rate').value = (result.data.inflation_rate || 0).toFixed(4);
+                document.getElementById('gold_price_usd').value = result.data.gold_price_usd || '';
+                document.getElementById('interest_rate').value = (result.data.interest_rate || 0).toFixed(4);
+                document.getElementById('nepse_index').value = result.data.nepse_index || '';
+                document.getElementById('festivals').value = result.data.festivals || '0';
+            }
+        } catch (error) {
+            console.error('Error in fetchAllData:', error);
+        }
+    }
+
+    // Individual fetch functions
+    async function fetchExchangeRate() { await fetchAllData(); }
+    async function fetchGoldPrice() { await fetchAllData(); }
+    async function fetchInflationRate() { await fetchAllData(); }
+    async function fetchInterestRate() { await fetchAllData(); }
+    async function fetchNEPSEIndex() { await fetchAllData(); }
+
+    // Form submission
+    document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const loading = document.querySelector('.loading');
+        const result = document.querySelector('.result');
+        const errorDiv = document.querySelector('.error');
+        
+        loading.classList.add('show');
+        result.classList.remove('show');
+        errorDiv.classList.remove('show');
+        
+        const formData = {
+            usd_rate: document.getElementById('usd_rate').value,
+            inflation_rate: document.getElementById('inflation_rate').value,
+            gold_price_usd: document.getElementById('gold_price_usd').value,
+            interest_rate: document.getElementById('interest_rate').value,
+            festivals: document.getElementById('festivals').value,
+            nepse_index: document.getElementById('nepse_index').value
+        };
+        
+        try {
+            const response = await fetch('/predict/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            loading.classList.remove('show');
+            
+            if (data.success) {
+                document.getElementById('predictionValue').textContent = 
+                    data.prediction.toLocaleString('en-NP', {minimumFractionDigits: 2});
+                document.getElementById('modelUsed').textContent = data.model_used || 'Linear Regression';
+                document.getElementById('modelAccuracy').textContent = 
+                    (parseFloat(data.model_accuracy) * 100).toFixed(2) + '%';
+                
+                const featuresList = document.getElementById('featuresList');
+                featuresList.innerHTML = '';
+                for (const [key, value] of Object.entries(data.features)) {
+                    const item = document.createElement('div');
+                    item.className = 'info-item';
+                    item.innerHTML = `<span>${key}:</span><span>${value}</span>`;
+                    featuresList.appendChild(item);
+                }
+                
+                result.classList.add('show');
+                
+                // Manual refresh after prediction
+                setTimeout(() => {
+                    loadPredictionHistory();
+                    loadQuickStats();
+                }, 1000);
+            } else {
+                errorDiv.textContent = 'Error: ' + data.error;
+                errorDiv.classList.add('show');
+            }
+        } catch (error) {
+            loading.classList.remove('show');
+            errorDiv.textContent = 'Network Error: ' + error.message;
+            errorDiv.classList.add('show');
+        }
+    });
+
+    // Emergency stop
+    window.stopEverything = function() {
+        for (let i = 1; i < 99999; i++) {
+            clearInterval(i);
+            clearTimeout(i);
+        }
+        console.log('ALL INTERVALS STOPPED');
+    };
+</script>
+{% endblock %}
